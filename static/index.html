@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PC3: Seleccion Natural</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: white; text-align: center; }
+        canvas { background: #333; border: 2px solid #555; margin-top: 10px; }
+        #panel { background: #444; padding: 10px; display: inline-block; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Simulacion PC3 (Seleccion Natural)</h1>
+    <div id="panel">
+        Día: <span id="dia">0</span> | Pob: <span id="pob">0</span> | 
+        <label>Velocidad:</label> <input type="range" id="slider" min="1" max="10" value="1">
+    </div>
+    <br>
+    <canvas id="miCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('miCanvas');
+        const ctx = canvas.getContext('2d');
+        const ANCHO = 800, ALTO = 600;
+
+        function draw(data) {
+            ctx.clearRect(0, 0, ANCHO, ALTO);
+
+            // Zonas Seguras
+            ctx.fillStyle = "rgba(100, 149, 237, 0.2)";
+            ctx.fillRect(0, 0, 50, ALTO);
+            ctx.fillRect(ANCHO - 50, 0, 50, ALTO);
+
+            // Comida
+            ctx.fillStyle = "#00ff00";
+            data.comida.forEach(c => {
+                ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI*2); ctx.fill();
+            });
+
+            // Blobs
+            data.blobs.forEach(b => {
+                ctx.beginPath();
+                // Color: Azul (lento) -> Rojo (rápido)
+                let val = Math.min(1, (b.speed - 1.0) / 3.0); 
+                let r = Math.floor(255 * val);
+                let blue = Math.floor(255 * (1 - val));
+
+                ctx.fillStyle = (b.state === 'seguro') ? '#555' : `rgb(${r}, 0, ${blue})`;
+                ctx.arc(b.x, b.y, 8, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = "white"; ctx.stroke();
+            });
+
+            document.getElementById('dia').innerText = data.dia;
+            document.getElementById('pob').innerText = data.blobs.length;
+        }
+
+        async function loop() {
+            try {
+                // NOTA: Pedimos a la raíz /data, no relativo
+                const res = await fetch('/data');
+                if (res.ok) {
+                    const data = await res.json();
+                    draw(data);
+                } else {
+                    console.log("Error 404 o similar");
+                }
+            } catch(e) { console.log("Conectando..."); }
+            setTimeout(loop, 100);
+        }
+
+        document.getElementById('slider').oninput = async function() {
+            await fetch('/speed', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({val: this.value})
+            });
+        }
+        loop();
+    </script>
+</body>
+</html>

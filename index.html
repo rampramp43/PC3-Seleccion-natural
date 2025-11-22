@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>PC3: Selección Natural</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: white; text-align: center; }
+        canvas { background: #333; border: 2px solid #555; margin-top: 10px; }
+        #controls { margin: 10px; padding: 10px; background: #444; display: inline-block; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h2>Simulación Selección Natural (PC3)</h2>
+    
+    <div id="controls">
+        <label>Velocidad: </label>
+        <input type="range" id="speedSlider" min="1" max="20" value="1">
+        <span id="speedVal">1x</span>
+    </div>
+
+    <div>
+        Día: <span id="dia">0</span> | 
+        Blobs: <span id="pob">0</span> | 
+        Comida: <span id="food">0</span>
+    </div>
+
+    <canvas id="simCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const ANCHO = 800;
+        const ALTO = 600;
+        const MARGEN_CASA = 50;
+
+        function dibujar(data) {
+            ctx.clearRect(0, 0, ANCHO, ALTO);
+
+            // 1. Dibujar Zonas Seguras (Casas)
+            ctx.fillStyle = "rgba(100, 149, 237, 0.2)"; // Azul suave
+            ctx.fillRect(0, 0, MARGEN_CASA, ALTO); // Izquierda
+            ctx.fillRect(ANCHO - MARGEN_CASA, 0, MARGEN_CASA, ALTO); // Derecha
+
+            // 2. Dibujar Comida
+            ctx.fillStyle = "#00ff00"; // Verde
+            data.comida.forEach(c => {
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 3. Dibujar Blobs
+            data.blobs.forEach(b => {
+                ctx.beginPath();
+                if (b.state === "seguro") {
+                    ctx.fillStyle = "#888"; // Gris si ya está a salvo
+                } else {
+                    // Color basado en velocidad: Azul (lento) -> Rojo (rápido)
+                    // Velocidad base ~2.0. Rango visual 1.0 a 4.0
+                    let ratio = (b.speed - 1.0) / 3.0; 
+                    ratio = Math.max(0, Math.min(1, ratio));
+                    let r = Math.floor(255 * ratio);
+                    let g = 0;
+                    let blue = Math.floor(255 * (1 - ratio));
+                    ctx.fillStyle = `rgb(${r},${g},${blue})`;
+                }
+                ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "white";
+                ctx.stroke();
+            });
+
+            // Textos
+            document.getElementById('dia').innerText = data.dia;
+            document.getElementById('pob').innerText = data.blobs.length;
+            document.getElementById('food').innerText = data.comida.length;
+        }
+
+        // Bucle de actualización
+        async function loop() {
+            try {
+                // Conectar con el Agente SPADE
+                const response = await fetch('http://localhost:10000/data');
+                const data = await response.json();
+                dibujar(data);
+            } catch (e) {
+                console.log("Esperando al agente...");
+            }
+            requestAnimationFrame(loop);
+        }
+
+        // Control de velocidad
+        document.getElementById('speedSlider').oninput = async function() {
+            document.getElementById('speedVal').innerText = this.value + "x";
+            await fetch('http://localhost:10000/speed', {
+                method: 'POST',
+                body: JSON.stringify({ val: this.value })
+            });
+        };
+
+        loop();
+    </script>
+</body>
+</html>
