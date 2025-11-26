@@ -1,72 +1,92 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>PC3: Seleccion Natural</title>
+    <meta charset="UTF-8">
+    <title>PC4: Agentes Evolutivos</title>
     <style>
-        body { font-family: sans-serif; background: #222; color: white; text-align: center; }
-        canvas { background: #333; border: 2px solid #555; margin-top: 10px; }
-        #panel { background: #444; padding: 10px; display: inline-block; border-radius: 8px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1e1e1e; color: #eee; text-align: center; }
+        canvas { background: #2b2b2b; border: 2px solid #444; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-top: 15px; }
+        .panel { background: #333; padding: 15px; display: inline-block; border-radius: 12px; border: 1px solid #555; }
+        input[type=range] { vertical-align: middle; }
     </style>
 </head>
 <body>
-    <h1>Simulacion PC3 (Seleccion Natural)</h1>
-    <div id="panel">
-        D�a: <span id="dia">0</span> | Pob: <span id="pob">0</span> | 
-        <label>Velocidad:</label> <input type="range" id="slider" min="1" max="10" value="1">
+    <h1>Simulación de Selección Natural (PC4)</h1>
+
+    <div class="panel">
+        <span>📅 Día: <b id="dia">0</b></span> | 
+        <span>🧬 Población: <b id="pob">0</b></span> | 
+        <span>🍔 Comida: <b id="food">0</b></span>
+        <br><br>
+        <label>⚡ Velocidad Simulación:</label>
+        <input type="range" id="slider" min="1" max="20" value="1">
     </div>
+
     <br>
-    <canvas id="miCanvas" width="800" height="600"></canvas>
+    <canvas id="simCanvas" width="800" height="600"></canvas>
 
     <script>
-        const canvas = document.getElementById('miCanvas');
+        const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
         const ANCHO = 800, ALTO = 600;
 
         function draw(data) {
             ctx.clearRect(0, 0, ANCHO, ALTO);
 
-            // Zonas Seguras
-            ctx.fillStyle = "rgba(100, 149, 237, 0.2)";
-            ctx.fillRect(0, 0, 50, ALTO);
-            ctx.fillRect(ANCHO - 50, 0, 50, ALTO);
+            // 1. Dibujar Zonas de "Hogar" (Safe Zones)
+            ctx.fillStyle = "rgba(65, 105, 225, 0.15)"; // RoyalBlue transparente
+            ctx.fillRect(0, 0, 60, ALTO); // Izquierda
+            ctx.fillRect(ANCHO - 60, 0, 60, ALTO); // Derecha
 
-            // Comida
-            ctx.fillStyle = "#00ff00";
+            // Texto de zonas
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.font = "20px Arial";
+            ctx.fillText("CASA", 5, 300);
+            ctx.fillText("CASA", ANCHO - 55, 300);
+
+            // 2. Dibujar Comida
             data.comida.forEach(c => {
+                ctx.fillStyle = "#00ff7f"; // SpringGreen
                 ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI*2); ctx.fill();
             });
 
-            // Blobs
+            // 3. Dibujar Agentes Blob
             data.blobs.forEach(b => {
                 ctx.beginPath();
-                // Color: Azul (lento) -> Rojo (r�pido)
-                let val = Math.min(1, (b.speed - 1.0) / 3.0); 
-                let r = Math.floor(255 * val);
-                let blue = Math.floor(255 * (1 - val));
+                // Visualización de Evolución: Color depende de velocidad
+                // Velocidad base ~2.0. Rango visual: 0.5 (Azul) a 5.0 (Rojo)
+                let normSpeed = Math.max(0, Math.min(1, (b.speed - 0.5) / 4.0));
+                let r = Math.floor(255 * normSpeed);
+                let g = 0;
+                let blue = Math.floor(255 * (1 - normSpeed));
 
-                ctx.fillStyle = (b.state === 'seguro') ? '#555' : `rgb(${r}, 0, ${blue})`;
-                ctx.arc(b.x, b.y, 8, 0, Math.PI*2);
+                ctx.fillStyle = (b.state === 'seguro') ? '#888' : `rgb(${r}, ${g}, ${blue})`;
+                ctx.arc(b.x, b.y, 9, 0, Math.PI*2);
                 ctx.fill();
-                ctx.strokeStyle = "white"; ctx.stroke();
+
+                // Borde para distinguir
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 1;
+                ctx.stroke();
             });
 
+            // Actualizar Panel
             document.getElementById('dia').innerText = data.dia;
             document.getElementById('pob').innerText = data.blobs.length;
+            document.getElementById('food').innerText = data.comida.length;
         }
 
         async function loop() {
             try {
-                // NOTA: Pedimos a la ra�z /data, no relativo
-                const res = await fetch('/data');
-                if (res.ok) {
-                    const data = await res.json();
+                // Comunicación con el Agente Central
+                const response = await fetch('/data'); 
+                if (response.ok) {
+                    const data = await response.json();
                     draw(data);
-                } else {
-                    console.log("Error 404 o similar");
                 }
-            } catch(e) { console.log("Conectando..."); }
-            setTimeout(loop, 100);
+            } catch(e) { console.log("Sincronizando con Agente Central..."); }
+            setTimeout(loop, 80); // ~12 FPS en GUI
         }
 
         document.getElementById('slider').oninput = async function() {
@@ -75,7 +95,8 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({val: this.value})
             });
-        }
+        };
+
         loop();
     </script>
 </body>
