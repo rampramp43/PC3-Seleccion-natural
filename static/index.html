@@ -3,9 +3,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft Hardcore Night</title>
+    <title>Minecraft RL Hunter Zombies</title>
     <style>
-        body { font-family: 'Segoe UI', monospace; background: #0d0d0d; color: #eee; text-align: center; }
+        body { font-family: 'Consolas', monospace; background: #0d0d0d; color: #eee; text-align: center; }
         canvas { background: #1b261b; border: 4px solid #3e2723; margin-top: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
         .panel { background: #212121; padding: 10px; display: inline-block; border: 1px solid #424242; border-radius: 8px; margin-bottom: 5px; min-width: 800px; }
         b { color: #ffca28; }
@@ -16,11 +16,11 @@
 </head>
 <body>
     <div class="panel">
+        <span class="stat">🧠 Gen: <b id="gen">0</b></span> | 
         <span class="stat">📅 Día: <b id="dia">1</b></span> | 
-        <span class="stat">💀 Amenaza: <b id="threat" style="color:#ef5350">0</b></span> |
+        <span class="stat">💀 Amenaza: <b id="threat" style="color:#ef5350">0</b>/10</span> |
         <span class="stat">👥 Vivos: <b id="pob">0</b></span> |
-        <span class="stat">🧟 Horda: <b id="zom">0</b></span> |
-        <span class="stat">♻️ Respawn: <b style="color:#00e676">DIARIO</b></span>
+        <span class="stat">🤖 IQ: <b id="iq" style="color:#29b6f6">0</b></span>
         <br><br>
         <label>⏩ Velocidad:</label> <input type="range" id="slider" min="1" max="50" value="1">
     </div>
@@ -29,7 +29,8 @@
 
     <div class="legend">
         🔴 Comida | 🟤 Madera | ⚪ Piedra | 
-        <span style="color:#ff9800">🏠 Casa</span> | <span style="color:#29b6f6">Steve</span>
+        <span style="color:#ff9800">🏠 Casa N1</span> -> <span style="color:#e65100">🏰 Fortaleza N5</span> | 
+        <span style="color:#00e676">🟩 HP Alto</span> <span style="color:#ffea00">🟨 HP Medio</span> <span style="color:#ff1744">🟥 HP Crítico</span>
     </div>
 
     <script>
@@ -38,7 +39,7 @@
         const ANCHO = 1000, ALTO = 700;
 
         function draw(data) {
-            ctx.fillStyle = data.is_night ? "#05040a" : "#2e7d32"; // Noche más oscura
+            ctx.fillStyle = data.is_night ? "#0a0814" : "#2e7d32"; 
             ctx.fillRect(0, 0, ANCHO, ALTO);
 
             // Recursos
@@ -54,14 +55,29 @@
             // Casas
             data.casas.forEach(h => {
                 let size = 16 + (h.lvl * 6);
-                ctx.fillStyle = h.lvl === 3 ? "#bf360c" : (h.lvl === 2 ? "#e65100" : "#ff9800");
+                if (h.lvl === 1) ctx.fillStyle = "#ff9800";
+                else if (h.lvl === 2) ctx.fillStyle = "#e65100";
+                else if (h.lvl === 3) ctx.fillStyle = "#d32f2f";
+                else if (h.lvl === 4) ctx.fillStyle = "#7b1fa2";
+                else ctx.fillStyle = "#212121";
+
                 ctx.fillRect(h.x - size/2, h.y - size/2, size, size);
-                // Barra HP Casa
-                ctx.fillStyle = "black"; ctx.fillRect(h.x - size/2, h.y - size/2 - 6, size, 4);
-                ctx.fillStyle = "#00e676"; ctx.fillRect(h.x - size/2, h.y - size/2 - 6, size * (h.hp/h.max_hp), 4);
-                // Ocupantes
-                ctx.fillStyle = "white"; ctx.font = "10px monospace";
-                ctx.fillText(h.occupants + "/" + h.cap, h.x - 10, h.y + 4);
+
+                // --- BARRA DE VIDA SEMÁFORO ---
+                ctx.fillStyle = "black"; 
+                ctx.fillRect(h.x - size/2, h.y - size/2 - 8, size, 5);
+
+                let hp_pct = h.hp / h.max_hp;
+                let hp_color = "#00e676"; // Verde
+                if (hp_pct < 0.5) hp_color = "#ffea00"; // Amarillo
+                if (hp_pct < 0.25) hp_color = "#ff1744"; // Rojo Alarma
+
+                ctx.fillStyle = hp_color;
+                ctx.fillRect(h.x - size/2, h.y - size/2 - 8, size * Math.max(0, hp_pct), 5);
+
+                // Texto Capacidad
+                ctx.fillStyle = "white"; ctx.font = "12px monospace";
+                ctx.fillText(h.occupants + "/" + h.cap, h.x - 10, h.y + 5);
             });
 
             // Steves
@@ -70,7 +86,10 @@
                 ctx.fillStyle = "#29b6f6"; 
                 ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
                 ctx.fill();
-                // Barra HP Steve
+
+                ctx.fillStyle = "white"; ctx.font = "10px Arial";
+                ctx.fillText(p.action, p.x - 10, p.y - 15);
+
                 ctx.fillStyle = "red"; ctx.fillRect(p.x-6, p.y-9, 12, 2);
                 ctx.fillStyle = "#76ff03"; ctx.fillRect(p.x-6, p.y-9, 12 * (p.hp/100), 2);
             });
@@ -88,6 +107,8 @@
             document.getElementById('threat').innerText = data.difficulty;
             document.getElementById('pob').innerText = data.steves.length;
             document.getElementById('zom').innerText = data.zombies.length;
+            document.getElementById('gen').innerText = data.gen;
+            document.getElementById('iq').innerText = data.avg_iq.toFixed(0);
         }
 
         async function loop() {
